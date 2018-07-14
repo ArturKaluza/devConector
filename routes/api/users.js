@@ -5,6 +5,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
 
+const validateRegisterInput = require('../../validation/register');
+const validateLoginInput = require('../../validation/login');
+
 const keys = require('../../config/keys')
 const User = require('../../models/User');
 
@@ -14,10 +17,19 @@ router.get('/', (req, res) => {
 
 
 router.post('/register', (req, res) => {
+    // validation
+    const {errors, isValid } = validateRegisterInput(req.body);
+    
+    if (!isValid) {
+        return res.status(400).json({errors});
+    }
+
     User.findOne({ email: req.body.email})
         .then(user => {
+            errors.email = 'Exmail already exist';
+
             if (user) {
-                res.status(400).json({email: 'Email alredy exsist'})
+                res.status(400).json(errors);
             } else {
                 const avatar = gravatar.url(req.body.email, {
                     s: 200,     // Size
@@ -47,13 +59,21 @@ router.post('/register', (req, res) => {
 
 // user/login returning token
 router.post('/login', (req, res) => {
+     // validation
+     const {errors, isValid } = validateLoginInput(req.body);
+    
+     if (!isValid) {
+         return res.status(400).json({errors});
+     }
+
     const {email, password} = req.body;
     
     User.findOne({email})
         .then(user => {
             
             if (!user) {
-                return res.status(404).json({email: 'User not found'})
+                errors.email = 'User not found'
+                return res.status(404).json(errors);
             }
         
         // compare hashed password
@@ -69,7 +89,8 @@ router.post('/login', (req, res) => {
                     
                     
                 } else {
-                    return res.status(400).json({password: 'password not correct'});
+                    errors.password = "Password incorect";
+                    return res.status(400).json(errors);
                 }
             })
         })
